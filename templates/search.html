@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <form action="" method="post" name="search">
+        {{ form.hidden_tag() }}
+        <p>
+            Words to search:<br>
+            {{ form.words(size=80) }}<br>
+            {% for error in form.words.errors %}
+                <span style="color: red;">[{{ error }}]</span>
+            {% endfor %}<br>
+        </p>
+        <p><input type="submit" value="Search"></p>
+    </form>
+{% endblock %}
