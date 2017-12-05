@@ -1,32 +1,59 @@
 import collections
-from re import findall, sub, subn
+from collections import defaultdict
+from re import findall
 
+from math import log
 from nltk.corpus import stopwords
 from nltk.stem.porter import *
+from time import time
 
 # import nltk
 # nltk.download("stopwords")
-# with open('training_tweets.txt', 'r', encoding='utf8') as file:
-#     texts = []
-#     s = None
-#     for line in file.read().splitlines():
-#         line = sub(r'\d+\s+\d+\s+', '', line)
-#         line, n = subn(r'\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}', '', line)
-#         if s is None:
-#             s = line
-#         else:
-#             s += ' ' + line
-#         if n > 0:
-#             texts.append(s)
-#             s = None
-
-with open('c:/kurwa.txt', 'a+') as file:
-    file.write('g\n')
+STOPWORDS = stopwords.words('english')
 
 
-# stemmer = PorterStemmer()
-# bags_of_words = [collections.Counter(
-#     [stemmer.stem(word) for word in findall(r'\w+', txt) if word not in stopwords.words('english')]) for txt in
-#     texts]
-# sum_bags = sum(bags_of_words, collections.Counter())
-# print(sum_bags)
+class Document:
+    def __init__(self, text, vector):
+        self.text = text
+        self.vector = vector
+
+
+def build_documents(texts):
+    stemmer = PorterStemmer()
+    bags_of_words = [collections.Counter(
+        [stemmer.stem(word) for word in map(lambda w: w.lower(), findall(r'\w+', txt)) if word not in STOPWORDS]
+    ) for txt in texts]
+
+    document_count = len(bags_of_words)
+
+    full_bags_of_words = []
+    c = defaultdict(int)
+    for d in bags_of_words:
+        full_bag_of_words = defaultdict(int)
+        for k, v in d.items():
+            c[k] += 1
+            full_bag_of_words[k] = v
+        full_bags_of_words.append(full_bag_of_words)
+
+    idf = dict()
+    for k, v in c.items():
+        idf[k] = log(document_count / v)
+
+    documents = []
+    for i, bag in enumerate(full_bags_of_words):
+        for k in bag.keys():
+            bag[k] *= idf[k]
+        documents.append(Document(texts[i], bag))
+
+    return documents
+
+
+with open('resources/training_set_tweets_clean.txt', 'r', encoding='utf8') as read_file:
+    texts = read_file.read().splitlines()
+
+t_start = time()
+full_bags_of_words = build_documents(texts)
+t_end = time()
+print(t_end - t_start)
+# for d in full_bags_of_words:
+#     print(d.text, d.vector)
