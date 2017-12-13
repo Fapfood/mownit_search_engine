@@ -63,7 +63,7 @@ def convert_documents_into_sparse_matrix(documents, vocab):
     return sparse.dok_matrix(np_matrix)
 
 
-with open('resources/training_set_tweets_clean.txt', 'r', encoding='utf8') as read_file:
+with open('resources/training_set_tweets_clean_2.txt', 'r', encoding='utf8') as read_file:
     texts = read_file.read().splitlines()[:10000]
 
 t_start = time()
@@ -73,12 +73,12 @@ t_end = time()
 print(t_end - t_start)
 matrix = convert_documents_into_sparse_matrix(documents, vocab)
 print(matrix)
-model = lda.LDA(n_topics=20, n_iter=1500, random_state=1)
+model = lda.LDA(n_topics=100, n_iter=10000, random_state=1)
 model.fit(matrix)
 topic_word = model.topic_word_
 print(topic_word)
 topic_word = model.topic_word_  # model.components_ also works
-n_top_words = 8
+n_top_words = 20
 for i, topic_dist in enumerate(topic_word):
     topic_words = np.array(vocab)[np.argsort(topic_dist)][:-(n_top_words + 1):-1]
     print('Topic {}: {}'.format(i, ' '.join(topic_words)))
