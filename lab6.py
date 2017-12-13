@@ -8,6 +8,7 @@ from nltk.stem.porter import *
 from time import time
 import numpy as np
 from scipy import sparse
+from scipy.sparse.linalg import svds
 import lda
 
 # import nltk
@@ -60,11 +61,11 @@ def convert_documents_into_sparse_matrix(documents, vocab):
         row = [vector[v] for v in vocab]
         matrix.append(row)
     np_matrix = np.matrix(matrix)
-    return sparse.dok_matrix(np_matrix)
+    return sparse.csc_matrix(np_matrix).astype('float')
 
 
 with open('resources/training_set_tweets_clean_2.txt', 'r', encoding='utf8') as read_file:
-    texts = read_file.read().splitlines()[:10000]
+    texts = read_file.read().splitlines()[:1000]
 
 t_start = time()
 documents, vocabulary_count = build_documents(texts)
@@ -72,13 +73,26 @@ vocab = list(vocabulary_count.keys())
 t_end = time()
 print(t_end - t_start)
 matrix = convert_documents_into_sparse_matrix(documents, vocab)
+
+length = min(matrix.shape) // 5
+
+U, s, V = svds(matrix, k=length)
+
+# model = lda.LDA(n_topics=100, n_iter=10000, random_state=1)
+# model.fit(matrix)
+# topic_word = model.topic_word_
+# print(topic_word)
+# topic_word = model.topic_word_  # model.components_ also works
+# n_top_words = 20
+# for i, topic_dist in enumerate(topic_word):
+#     topic_words = np.array(vocab)[np.argsort(topic_dist)][:-(n_top_words + 1):-1]
+#     print('Topic {}: {}'.format(i, ' '.join(topic_words)))
+
+
+m = np.zeros(matrix.shape)
+for i in range(length):
+    m += np.outer(U[:, i], V[i]).dot(s[i])
+
+print(m)
 print(matrix)
-model = lda.LDA(n_topics=100, n_iter=10000, random_state=1)
-model.fit(matrix)
-topic_word = model.topic_word_
-print(topic_word)
-topic_word = model.topic_word_  # model.components_ also works
-n_top_words = 20
-for i, topic_dist in enumerate(topic_word):
-    topic_words = np.array(vocab)[np.argsort(topic_dist)][:-(n_top_words + 1):-1]
-    print('Topic {}: {}'.format(i, ' '.join(topic_words)))
+print(matrix-m)
