@@ -6,6 +6,9 @@ from math import log
 from nltk.corpus import stopwords
 from nltk.stem.porter import *
 from time import time
+import numpy as np
+from scipy import sparse
+import lda
 
 # import nltk
 # nltk.download("stopwords")
@@ -18,42 +21,64 @@ class Document:
         self.vector = vector
 
 
-def build_documents(texts):
+def build_documents(texts, scale_by_idf=False):
     stemmer = PorterStemmer()
     bags_of_words = [collections.Counter(
         [stemmer.stem(word) for word in map(lambda w: w.lower(), findall(r'\w+', txt)) if word not in STOPWORDS]
     ) for txt in texts]
 
-    document_count = len(bags_of_words)
+    documents_count = len(texts)
 
-    full_bags_of_words = []
-    c = defaultdict(int)
-    for d in bags_of_words:
-        full_bag_of_words = defaultdict(int)
-        for k, v in d.items():
-            c[k] += 1
-            full_bag_of_words[k] = v
-        full_bags_of_words.append(full_bag_of_words)
+    bags_of_words_with_default = []
+    vocabulary_count = defaultdict(int)
+
+    for bag_of_words in bags_of_words:
+        bag_of_words_with_default = defaultdict(int)
+        for k, v in bag_of_words.items():
+            vocabulary_count[k] += 1
+            bag_of_words_with_default[k] = v
+        bags_of_words_with_default.append(bag_of_words_with_default)
 
     idf = dict()
-    for k, v in c.items():
-        idf[k] = log(document_count / v)
+    for k, v in vocabulary_count.items():
+        idf[k] = log(documents_count / v)
 
     documents = []
-    for i, bag in enumerate(full_bags_of_words):
-        for k in bag.keys():
-            bag[k] *= idf[k]
+    for i, bag in enumerate(bags_of_words_with_default):
+        if scale_by_idf:
+            for k in bag.keys():
+                bag[k] *= idf[k]
         documents.append(Document(texts[i], bag))
 
-    return documents
+    return documents, vocabulary_count
+
+
+def convert_documents_into_sparse_matrix(documents, vocab):
+    matrix = []
+    for document in documents:
+        vector = document.vector
+        row = [vector[v] for v in vocab]
+        matrix.append(row)
+    np_matrix = np.matrix(matrix)
+    return sparse.dok_matrix(np_matrix)
 
 
 with open('resources/training_set_tweets_clean.txt', 'r', encoding='utf8') as read_file:
-    texts = read_file.read().splitlines()
+    texts = read_file.read().splitlines()[:10000]
 
 t_start = time()
-full_bags_of_words = build_documents(texts)
+documents, vocabulary_count = build_documents(texts)
+vocab = list(vocabulary_count.keys())
 t_end = time()
 print(t_end - t_start)
-# for d in full_bags_of_words:
-#     print(d.text, d.vector)
+matrix = convert_documents_into_sparse_matrix(documents, vocab)
+print(matrix)
+model = lda.LDA(n_topics=20, n_iter=1500, random_state=1)
+model.fit(matrix)
+topic_word = model.topic_word_
+print(topic_word)
+topic_word = model.topic_word_  # model.components_ also works
+n_top_words = 8
+for i, topic_dist in enumerate(topic_word):
+    topic_words = np.array(vocab)[np.argsort(topic_dist)][:-(n_top_words + 1):-1]
+    print('Topic {}: {}'.format(i, ' '.join(topic_words)))
