@@ -1,6 +1,6 @@
-from re import sub, subn, search
+from re import sub, subn, search, IGNORECASE
 
-write_file = open('resources/training_set_tweets_clean_2.txt', 'w', encoding='utf8')
+write_file = open('resources/training_set_tweets_clean_3.txt', 'w', encoding='utf8')
 with open('resources/training_set_tweets.txt', 'r', encoding='utf8') as read_file:
     s = None
     for line in read_file.read().splitlines():
@@ -11,7 +11,7 @@ with open('resources/training_set_tweets.txt', 'r', encoding='utf8') as read_fil
         else:
             s += ' ' + line
         if n > 0:
-            if not bool(search(r'\d', s)):
+            if not bool(search(r'\d', s)) and not bool(search(r'http', s, IGNORECASE)) and not bool(search(r'@', s)):
                 write_file.write(s + '\n')
             s = None
 
