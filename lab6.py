@@ -1,15 +1,14 @@
 import collections
 from collections import defaultdict
-from re import findall
-
 from math import log
+from re import findall
+from time import time
+
+import lda
+import numpy as np
 from nltk.corpus import stopwords
 from nltk.stem.porter import *
-from time import time
-import numpy as np
-from scipy.sparse import hstack, csc_matrix, save_npz
-from scipy.sparse.linalg import svds
-import lda
+from scipy.sparse import hstack, csc_matrix, save_npz, load_npz
 
 # import nltk
 # nltk.download("stopwords")
@@ -76,7 +75,8 @@ def build_documents(texts, scale_by_idf=True, normalize=True, measure_time=True)
     return documents, vocabulary_count
 
 
-def build_vocab(vocabulary_count, remove_most_common_fraction=0.1, measure_time=True, save=True):
+def build_vocab(vocabulary_count, remove_most_common_fraction=0.1, measure_time=True,
+                save=True, save_path='resources/vocabulary.txt'):
     t_start = time()
 
     sorted_dict = sorted(vocabulary_count.items(), key=lambda x: x[1], reverse=True)
@@ -90,19 +90,20 @@ def build_vocab(vocabulary_count, remove_most_common_fraction=0.1, measure_time=
         print('build vocab time:', t_end - t_start)
 
     if save:
-        with open('resources/vocabulary.txt', 'w', encoding='utf8') as vocabulary:
+        with open(save_path, 'w', encoding='utf8') as vocabulary:
             vocabulary.write(' '.join(sorted_list))
 
     return sorted_list
 
 
-def convert_documents_into_sparse_matrix(documents, vocab, measure_time=True, save=True):
+def convert_documents_into_sparse_matrix(documents, vocab, dtype=np.float64, measure_time=True,
+                                         save=True, save_path='resources/org_matrix'):
     t_start = time()
 
-    matrix = csc_matrix((len(vocab), 0), dtype=np.float64)
+    matrix = csc_matrix((len(vocab), 0), dtype=dtype)
     for i, document in enumerate(documents):
         vector = document.vector
-        column = csc_matrix([vector.get(v, 0) for v in vocab], dtype=np.float64).T
+        column = csc_matrix([vector.get(v, 0) for v in vocab], dtype=dtype).T
         matrix = hstack([matrix, column])
 
     t_end = time()
@@ -111,23 +112,59 @@ def convert_documents_into_sparse_matrix(documents, vocab, measure_time=True, sa
         print('build sparse matrix time:', t_end - t_start)
 
     if save:
-        save_npz('resources/org_matrix', matrix)
+        save_npz(save_path, matrix)
 
     return matrix
 
 
-texts = read_data(40_000)
-documents, vocabulary_count = build_documents(texts)
-vocab = build_vocab(vocabulary_count)
-matrix = convert_documents_into_sparse_matrix(documents, vocab)
+def latent_dirichlet_allocation(matrix, n_topics=100, n_iter=10_000, measure_time=True,
+                                save=True, save_path='resources/topic_matrix'):
+    """NOT WORK WITH FLOAT VALUES"""
+    t_start = time()
 
-# NOT WORK WITH FLOAT VALUES
-# model = lda.LDA(n_topics=100, n_iter=10000, random_state=1)
-# model.fit(matrix)
-# topic_word = model.topic_word_
-# print(topic_word)
-# topic_word = model.topic_word_  # model.components_ also works
-# n_top_words = 20
-# for i, topic_dist in enumerate(topic_word):
-#     topic_words = np.array(vocab)[np.argsort(topic_dist)][:-(n_top_words + 1):-1]
-#     print('Topic {}: {}'.format(i, ' '.join(topic_words)))
+    model = lda.LDA(n_topics=n_topics, n_iter=n_iter, random_state=1)
+    model.fit(matrix.T)
+    topic_word = model.topic_word_  # model.components_ also works
+
+    t_end = time()
+
+    if measure_time:
+        print('lta time:', t_end - t_start)
+
+    if save:
+        np.save(save_path, topic_word)
+
+    return topic_word
+
+
+def get_topics(topic_matrix, vocab, n_top_words=20, measure_time=True, save_path='resources/topic_list.txt'):
+    t_start = time()
+
+    with open(save_path, 'w', encoding='utf8') as file:
+        for i, topic_dist in enumerate(topic_matrix):
+            topic_words = np.array(vocab)[np.argsort(topic_dist)][:-(n_top_words + 1):-1]
+            file.write('Topic {}: {}\n'.format(i, ' '.join(topic_words)))
+
+    t_end = time()
+
+    if measure_time:
+        print('get topics time:', t_end - t_start)
+
+
+# texts = read_data(30_000)
+# documents, vocabulary_count = build_documents(texts)
+# vocab = build_vocab(vocabulary_count)
+# matrix = convert_documents_into_sparse_matrix(documents, vocab)
+#
+# texts = read_data(30_000)
+# documents, vocabulary_count = build_documents(texts, scale_by_idf=False, normalize=False)
+# vocab = build_vocab(vocabulary_count, save=False)
+# matrix = convert_documents_into_sparse_matrix(documents, vocab, dtype=np.int8, save_path='resources/org_nonscale_matrix')
+#
+# matrix = load_npz('resources/org_nonscale_matrix.npz')
+# topic_matrix = latent_dirichlet_allocation(matrix, n_topics=150, n_iter=30_000)
+#
+# with open('resources/vocabulary.txt', 'r', encoding='utf8') as vocabulary:
+#     vocab = vocabulary.readline().split(' ')
+# topic_matrix = np.load('resources/topic_matrix.npy')
+# get_topics(topic_matrix, vocab)
