@@ -1,5 +1,6 @@
 from re import findall
 
+from sortedcontainers import SortedList
 from flask import Flask, render_template, flash
 from flask_wtf import FlaskForm
 from nltk.corpus import stopwords
@@ -24,12 +25,10 @@ def login():
     form = SearchForm()
     if form.validate_on_submit():
         words = stem_words(form.words.data)
-        indexes = []
-        for word in words:
-            if vocabulary.get(word, None) is not None:
-                indexes.append(vocabulary.get(word))
-        for message in indexes:
-            flash(message)
+        columns = find_most_similar(words)
+        for column in columns:
+            print(column[1])
+            flash(texts[column[0]])
         return redirect('/results')
     return render_template('search.html', title='Search', form=form)
 
@@ -44,13 +43,31 @@ def stem_words(line):
     return [stemmer.stem(word) for word in map(lambda w: w.lower(), findall(r'\w+', line)) if word not in STOPWORDS]
 
 
-# def find_most_similar(words, k=10):
-# for column in matrix.T:
+def find_most_similar(words, k=10):
+    indexes = []
+    for word in words:
+        if vocabulary.get(word, None) is not None:
+            indexes.append(vocabulary.get(word))
+    l = []
+    for num, column in enumerate(matrix.toarray().T):
+        if num % 100 == 0: print(num)
+        sum = 0
+        for index in indexes:
+            sum += column[index]
+        l.append((num, sum))
+        if len(l) > k:
+            l.sort(key=lambda x: x[1], reverse=True)
+            l.pop()
+    return l
 
 
 if __name__ == '__main__':
-    with open('resources/vocabulary.txt', 'r', encoding='utf8') as vocabulary:
+    with open('resources/training_set_tweets_clean_3-copy.txt', 'r', encoding='utf8') as read_file:
+        texts = read_file.read().splitlines()[:30_000]
+    with open('resources/vocabulary-copy.txt', 'r', encoding='utf8') as vocabulary:
         vocab = vocabulary.readline().split(' ')
     vocabulary = {v: i for i, v in enumerate(vocab)}
-    # matrix = load_npz('resources/org_matrix.npz')
+    # matrix = load_npz('resources/org_matrix-copy.npz')
+    matrix = load_npz('resources/cln_sparse_matrix.npz')
+    # matrix = load_npz('resources/org_nonscale_but_normalise_matrix.npz').toarray().T
     app.run()
