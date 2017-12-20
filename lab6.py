@@ -151,21 +151,25 @@ def get_topics(topic_matrix, vocab, n_top_words=20, measure_time=True, save_path
         print('get topics time:', t_end - t_start)
 
 
+"""SCALE BY IDF AND NORMALIZE"""
 # texts = read_data(30_000)
 # documents, vocabulary_count = build_documents(texts)
 # vocab = build_vocab(vocabulary_count)
 # matrix = convert_documents_into_sparse_matrix(documents, vocab)
 
+"""NOT SCALE BUT IDF AND NOT NORMALIZE - TO USE IN LDA"""
 # texts = read_data(30_000)
 # documents, vocabulary_count = build_documents(texts, scale_by_idf=False, normalize=False)
 # vocab = build_vocab(vocabulary_count, save=False)
 # matrix = convert_documents_into_sparse_matrix(documents, vocab, dtype=np.int8, save_path='resources/org_nonscale_matrix')
 
+"""NOT SCALE BY IDF BUT NORMALIZE"""
 # texts = read_data(30_000)
 # documents, vocabulary_count = build_documents(texts, scale_by_idf=False, normalize=True)
 # vocab = build_vocab(vocabulary_count, save=False)
 # matrix = convert_documents_into_sparse_matrix(documents, vocab, save_path='resources/org_nonscale_but_normalise_matrix')
 
+"""LDA"""
 # matrix = load_npz('resources/org_nonscale_matrix.npz')
 # topic_matrix = latent_dirichlet_allocation(matrix, n_topics=150, n_iter=30_000)
 

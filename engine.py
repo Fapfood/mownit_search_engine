@@ -1,6 +1,5 @@
 from re import findall
 
-from sortedcontainers import SortedList
 from flask import Flask, render_template, flash
 from flask_wtf import FlaskForm
 from nltk.corpus import stopwords
@@ -48,26 +47,27 @@ def find_most_similar(words, k=10):
     for word in words:
         if vocabulary.get(word, None) is not None:
             indexes.append(vocabulary.get(word))
-    l = []
-    for num, column in enumerate(matrix.toarray().T):
-        if num % 100 == 0: print(num)
-        sum = 0
-        for index in indexes:
-            sum += column[index]
-        l.append((num, sum))
-        if len(l) > k:
-            l.sort(key=lambda x: x[1], reverse=True)
-            l.pop()
-    return l
+    best = []
+    for num, column in enumerate(matrix):
+        best.append((num, sum(column[indexes])))
+        if len(best) > k:
+            best.sort(key=lambda x: x[1], reverse=True)
+            best.pop()
+    return best
 
 
 if __name__ == '__main__':
-    with open('resources/training_set_tweets_clean_3-copy.txt', 'r', encoding='utf8') as read_file:
+    with open('resources/training_set_tweets_clean_3.txt', 'r', encoding='utf8') as read_file:
         texts = read_file.read().splitlines()[:30_000]
-    with open('resources/vocabulary-copy.txt', 'r', encoding='utf8') as vocabulary:
+    with open('resources/vocabulary.txt', 'r', encoding='utf8') as vocabulary:
         vocab = vocabulary.readline().split(' ')
     vocabulary = {v: i for i, v in enumerate(vocab)}
-    # matrix = load_npz('resources/org_matrix-copy.npz')
-    matrix = load_npz('resources/cln_sparse_matrix.npz')
+    """SCALE BY IDF AND NORMALIZE"""
+    matrix = load_npz('resources/org_matrix.npz').toarray().T
+    """SCALE BY IDF AND NORMALIZE AND LRA"""
+    # matrix = load_npz('resources/cln_sparse_matrix.npz').toarray().T
+    """NOT SCALE BY IDF BUT NORMALIZE"""
     # matrix = load_npz('resources/org_nonscale_but_normalise_matrix.npz').toarray().T
+    """NOT SCALE BY IDF BUT NORMALIZE AND LRA"""
+    # matrix = load_npz('resources/cln_sparse_nonscale_but_normalise_matrix.npz').toarray().T
     app.run()
